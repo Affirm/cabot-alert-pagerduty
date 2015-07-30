@@ -1,0 +1,14 @@
+.coverage
+.noseids
+nosetests.xml
+coverage.xml
+.venv
+*.swp
+*.swo
+*~
+.#*
+
+.eggs/
+_build/
+*.pyc
+*.egg-info/
