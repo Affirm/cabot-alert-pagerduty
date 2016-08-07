@@ -28,6 +28,9 @@ class PagerdutyAlert(AlertPlugin):
     def send_alert(self, service, users, duty_officers):
         """Implement your send_alert functionality here."""
 
+        if not self._service_alertable(service):
+            return
+
         subdomain = os.environ.get('PAGERDUTY_SUBDOMAIN')
         api_token = os.environ.get('PAGERDUTY_API_TOKEN')
 
@@ -60,6 +63,19 @@ class PagerdutyAlert(AlertPlugin):
                                             incident_key=incident_key)
             except Exception, exp:
                 logger.exception('Error invoking pagerduty: %s' % str(exp))
+
+    def _service_alertable(self, service):
+
+        alertable_status = [service.ERROR_STATUS, service.CRITICAL_STATUS]
+
+        if service.overall_status in alertable_status:
+            return True
+
+        if service.overall_status == service.PASSING_STATUS and \
+            service.old_overall_status in alertable_status:
+            return True
+
+        return False
 
 
 class PagerdutyAlertUserData(AlertPluginUserData):
