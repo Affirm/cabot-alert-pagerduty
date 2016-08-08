@@ -17,4 +17,7 @@ setup(name='cabot-alert-pagerduty',
       install_requires=[
         'pygerduty==0.14',
       ],
+      tests_require=[
+        'cabot',
+      ],
      )
