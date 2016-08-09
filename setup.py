@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 from setuptools import setup
 
 __VERSION__ = '1.0.1'
