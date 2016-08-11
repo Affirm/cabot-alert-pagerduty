@@ -4,57 +4,32 @@ from __future__ import absolute_import
 
 import unittest
 
+import tests.bootstrap_tests
+
+from cabot.cabotapp.models import Service
 from cabot_alert_pagerduty.models import _service_alertable
-# from mappers.MapperLocator import find_mapper, MapperLookupError
 
 class TestServiceStatusChecks(unittest.TestCase):
 
     def setUp(self):
         pass
 
-    def test_valid_mapping(self):
-        """ Proper class is returned via qualified name string """
+    def test_critical_alertable(self):
+        """ A service with a critical status is alertable """
+        service = Service()
 
-        # from mappers.BaseMapper import BaseMapper
+        service.overall_status = service.CRITICAL_STATUS
+        self.assertTrue(_service_alertable(service))
 
-        # base_mapper_name = 'mappers.BaseMapper.BaseMapper'
+    def test_non_critical_alertable(self):
+        """ A non-critical service status does not alert """
+        service = Service()
 
-        # base_mapper = find_mapper(base_mapper_name)
+        service.overall_status = service.WARNING_STATUS
+        self.assertFalse(_service_alertable(service))
 
-        self.assertEqual(True, True)
-
-    # def test_non_qualified_mapper_name(self):
-    #     """ A mapper name that is not fully qualified results in an error """
-
-    #     mapper_name = 'BaseMapper'
-
-    #     with self.assertRaises(MapperLookupError) as error:
-    #         find_mapper(mapper_name)
-
-    #     err_message = 'Incomplete class name specified: BaseMapper'
-    #     self.assertEqual(str(error.exception), err_message)
-
-    # def test_invalid_mapper_module(self):
-    #     """ Invalid module name generate error when attempting to load """
-
-    #     mapper_name = 'mapperz.BaseMapper'
-
-    #     with self.assertRaises(MapperLookupError) as error:
-    #         find_mapper(mapper_name)
-
-    #     err_message = 'mapperz module cannot be found for class BaseMapper'
-    #     self.assertEqual(str(error.exception), err_message)
-
-    # def test_invalid_mapper_class_name(self):
-    #     """ Invalid class name generates error when attempting to load """
-
-    #     mapper_name = 'mappers.BaseMapper.LOLWut'
-
-    #     with self.assertRaises(MapperLookupError) as error:
-    #         find_mapper(mapper_name)
-
-    #     err_msg = 'LOLWut class cannot be found in module mappers.BaseMapper'
-    #     self.assertEqual(str(error.exception), err_msg)
+        service.overall_status = service.ERROR_STATUS
+        self.assertFalse(_service_alertable(service))
 
 
 if __name__ == '__main__':

@@ -64,9 +64,10 @@ class PagerdutyAlert(AlertPlugin):
             except Exception, exp:
                 logger.exception('Error invoking pagerduty: %s' % str(exp))
 
+
 def _service_alertable(service):
 
-    alertable_status = [service.ERROR_STATUS, service.CRITICAL_STATUS]
+    alertable_status = [service.CRITICAL_STATUS]
 
     if service.overall_status in alertable_status:
         return True
