@@ -8,7 +8,7 @@ import tests.bootstrap_tests
 
 from cabot.cabotapp.models import Service
 from cabot_alert_pagerduty.models import PagerdutyAlert
-from cabot_alert_pagerduty.models import _service_alertable
+# from cabot_alert_pagerduty.models import _service_alertable
 from cabot_alert_pagerduty.models import _gather_alertable_status
 
 class TestServiceStatusChecks(unittest.TestCase):
@@ -20,18 +20,22 @@ class TestServiceStatusChecks(unittest.TestCase):
         """ A service with a critical status is alertable """
         service = Service()
 
+        plugin = PagerdutyAlert()
+
         service.overall_status = service.CRITICAL_STATUS
-        self.assertTrue(_service_alertable(service))
+        self.assertTrue(plugin._service_alertable(service))
 
     def test_non_critical_alertable(self):
         """ A non-critical service status does not alert """
         service = Service()
 
+        plugin = PagerdutyAlert()
+
         service.overall_status = service.WARNING_STATUS
-        self.assertFalse(_service_alertable(service))
+        self.assertFalse(plugin._service_alertable(service))
 
         service.overall_status = service.ERROR_STATUS
-        self.assertFalse(_service_alertable(service))
+        self.assertFalse(plugin._service_alertable(service))
 
     def test_default_critical_status(self):
 
@@ -53,10 +57,10 @@ class TestServiceStatusChecks(unittest.TestCase):
 
         os.environ['PAGERDUTY_ALERT_STATUS'] = 'CRITICAL,WARNING'
 
-        default_alert_status = ['CRITICAL', 'WARNING']
+        custom_alert_status = ['CRITICAL', 'WARNING']
         plugin = PagerdutyAlert()
 
-        self.assertEqual(default_alert_status, plugin.alert_status_list)
+        self.assertEqual(custom_alert_status, plugin.alert_status_list)
 
 if __name__ == '__main__':
     SUITE = unittest.TestLoader().loadTestsFromTestCase(TestServiceStatusChecks)
