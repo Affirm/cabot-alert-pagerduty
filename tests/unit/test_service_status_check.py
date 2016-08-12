@@ -2,12 +2,15 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
+import os
 import unittest
 
 import tests.bootstrap_tests
 
 from cabot.cabotapp.models import Service
+from cabot_alert_pagerduty.models import PagerdutyAlert
 from cabot_alert_pagerduty.models import _service_alertable
+from cabot_alert_pagerduty.models import _gather_alertable_status
 
 class TestServiceStatusChecks(unittest.TestCase):
 
@@ -31,6 +34,30 @@ class TestServiceStatusChecks(unittest.TestCase):
         service.overall_status = service.ERROR_STATUS
         self.assertFalse(_service_alertable(service))
 
+    def test_default_critical_status(self):
+
+        os.environ.pop('PAGERDUTY_ALERT_STATUS', None)
+
+        default_alert_status = ['CRITICAL']
+        self.assertEqual(default_alert_status, _gather_alertable_status())
+
+    def test_default_status_in_plugin(self):
+
+        os.environ.pop('PAGERDUTY_ALERT_STATUS', None)
+
+        default_alert_status = ['CRITICAL']
+        plugin = PagerdutyAlert()
+
+        self.assertEqual(default_alert_status, plugin.alert_status_list)
+
+    def test_configured_status_in_plugin(self):
+
+        os.environ['PAGERDUTY_ALERT_STATUS'] = 'CRITICAL,WARNING'
+
+        default_alert_status = ['CRITICAL', 'WARNING']
+        plugin = PagerdutyAlert()
+
+        self.assertEqual(default_alert_status, plugin.alert_status_list)
 
 if __name__ == '__main__':
     SUITE = unittest.TestLoader().loadTestsFromTestCase(TestServiceStatusChecks)

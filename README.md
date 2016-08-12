@@ -16,6 +16,13 @@ Service Key will be generated to be used for creating the specific user
 to link to the PagerDuty escalation policy. Which users are alerted by
 Pagerduty will be configured as part of this policy.
 
+####In Cabot Configuration:
+* Set ```PAGERDUTY_API_TOKEN``` to value configured in Pagerduty
+* Set ```PAGERDUTY_SUBDOMAIN``` for Pagerduty API endpoint
+* If alerts should be sent to Pagerduty for a service status check other than
+critical, configure a comma-separated list for ```PAGERDUTY_ALERT_STATUS```
+e.g. 'ERROR,CRITICAL'
+
 ####In Cabot:
 * Add a user dedicated to a specific Pagerduty Escalation Policy
 * Configure this user as "fallback duty officer"

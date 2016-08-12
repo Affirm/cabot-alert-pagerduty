@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import logging
 import os
 import pygerduty
@@ -24,6 +25,12 @@ class PagerdutyAlert(AlertPlugin):
     '''
     name = "Pagerduty"
     author = "Mahendra M"
+
+    
+    def __init__(self):
+        super(PagerdutyAlert, self).__init__()
+
+        self.alert_status_list = _gather_alertable_status()
 
     def send_alert(self, service, users, duty_officers):
         """Implement your send_alert functionality here."""
@@ -66,6 +73,7 @@ class PagerdutyAlert(AlertPlugin):
 
 
 def _service_alertable(service):
+    """ Evaluate service for alertable status """
 
     alertable_status = [service.CRITICAL_STATUS]
 
@@ -78,6 +86,11 @@ def _service_alertable(service):
 
     return False
 
+
+def _gather_alertable_status():
+    alert_status_list = os.environ.get('PAGERDUTY_ALERT_STATUS', 'CRITICAL').split(',')
+
+    return alert_status_list
 
 class PagerdutyAlertUserData(AlertPluginUserData):
     name = "Pagerduty Plugin"
