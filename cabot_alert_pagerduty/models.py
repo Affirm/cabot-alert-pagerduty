@@ -26,11 +26,12 @@ class PagerdutyAlert(AlertPlugin):
     name = "Pagerduty"
     author = "Mahendra M"
 
-    
-    def __init__(self, *args, **kwargs):
-        super(PagerdutyAlert, self).__init__(self, *args, **kwargs)
+    @property
+    def alert_status_list(self):
+        if not hasattr(self, '_alert_status_list'):
+            self._alert_status_list = _gather_alertable_status()
 
-        self.alert_status_list = _gather_alertable_status()
+        return self._alert_status_list
 
     def send_alert(self, service, users, duty_officers):
         """Implement your send_alert functionality here."""
