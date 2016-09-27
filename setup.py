@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-
 from setuptools import setup
 
-__VERSION__ = '1.0.1'
+__VERSION__ = '1.0.2'
 
 setup(name='cabot-alert-pagerduty',
       version=__VERSION__,
@@ -16,5 +15,8 @@ setup(name='cabot-alert-pagerduty',
       download_url='https://github.com/Affirm/cabot-alert-pagerduty/tarball/%s' % __VERSION__,
       install_requires=[
         'pygerduty==0.14',
+      ],
+      tests_require=[
+        'cabot',
       ],
      )

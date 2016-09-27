@@ -3,6 +3,7 @@
 nosetests.xml
 coverage.xml
 .venv
+venv/*
 *.swp
 *.swo
 *~
@@ -10,5 +11,7 @@ coverage.xml
 
 .eggs/
 _build/
+build/*
+dist/*
 *.pyc
 *.egg-info/

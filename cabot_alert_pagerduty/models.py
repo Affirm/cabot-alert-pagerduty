@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import logging
 import os
 import pygerduty
@@ -25,8 +26,18 @@ class PagerdutyAlert(AlertPlugin):
     name = "Pagerduty"
     author = "Mahendra M"
 
+    @property
+    def alert_status_list(self):
+        if not hasattr(self, '_alert_status_list'):
+            self._alert_status_list = _gather_alertable_status()
+
+        return self._alert_status_list
+
     def send_alert(self, service, users, duty_officers):
         """Implement your send_alert functionality here."""
+
+        if not self._service_alertable(service):
+            return
 
         subdomain = os.environ.get('PAGERDUTY_SUBDOMAIN')
         api_token = os.environ.get('PAGERDUTY_API_TOKEN')
@@ -61,6 +72,23 @@ class PagerdutyAlert(AlertPlugin):
             except Exception, exp:
                 logger.exception('Error invoking pagerduty: %s' % str(exp))
 
+    def _service_alertable(self, service):
+        """ Evaluate service for alertable status """
+
+        if service.overall_status in self.alert_status_list:
+            return True
+
+        if service.overall_status == service.PASSING_STATUS and \
+            service.old_overall_status in self.alert_status_list:
+            return True
+
+        return False
+
+
+def _gather_alertable_status():
+    alert_status_list = os.environ.get('PAGERDUTY_ALERT_STATUS', 'CRITICAL').split(',')
+
+    return alert_status_list
 
 class PagerdutyAlertUserData(AlertPluginUserData):
     name = "Pagerduty Plugin"
