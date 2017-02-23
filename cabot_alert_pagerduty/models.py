@@ -71,6 +71,7 @@ class PagerdutyAlert(AlertPlugin):
                                             incident_key=incident_key)
             except Exception, exp:
                 logger.exception('Error invoking pagerduty: %s' % str(exp))
+                raise
 
     def _service_alertable(self, service):
         """ Evaluate service for alertable status """
