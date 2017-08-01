@@ -62,7 +62,7 @@ class PagerdutyAlert(AlertPlugin):
 
         for service_key in service_keys:
             try:
-                if service.overall_status == service.PASSING_STATUS:
+                if service.overall_status not in self.alert_status_list:
                     client.resolve_incident(service_key,
                                             incident_key)
                 else:
@@ -79,7 +79,7 @@ class PagerdutyAlert(AlertPlugin):
         if service.overall_status in self.alert_status_list:
             return True
 
-        if service.overall_status == service.PASSING_STATUS and \
+        if service.overall_status not in self.alert_status_list and \
             service.old_overall_status in self.alert_status_list:
             return True
 
