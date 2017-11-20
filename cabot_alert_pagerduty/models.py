@@ -47,6 +47,10 @@ class PagerdutyAlert(AlertPlugin):
         description = 'Service: %s is %s' % (service.name,
                                              service.overall_status)
 
+        failed_checks = [check.name for check in service.all_failing_checks()]
+        if len(failed_checks) > 0:
+            description += ' failed checks [%s]' % ','.join(failed_checks)
+
         incident_key = '%s/%d' % (service.name.lower().replace(' ', '-'),
                                   service.pk)
 
