@@ -28,7 +28,7 @@ class TestPagerdutyAlerts(PluginTestCase):
 
     def test_non_critical_alertable(self):
         """ A non-critical service status does not alert """
-        for status in Service.WARNING_STATUS, Service.ERROR_STATUS:
+        for status in Service.WARNING_STATUS, Service.ERROR_STATUS, Service.ACKED_STATUS:
             self.service.overall_status = status
             self.assertFalse(self.plugin._service_alertable(self.service))
 
