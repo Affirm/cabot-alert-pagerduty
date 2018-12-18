@@ -52,11 +52,11 @@ class TestPagerdutyAlerts(PluginTestCase):
         resolve_incident = fake_client_class.return_value.resolve_incident
         trigger_incident = fake_client_class.return_value.trigger_incident
 
-        self.transition_service(Service.PASSING_STATUS, Service.CRITICAL_STATUS)
+        self.transition_service_status(Service.PASSING_STATUS, Service.CRITICAL_STATUS)
         trigger_incident.assert_called_once_with('user_key', 'Service: Service is CRITICAL',
                                                  incident_key='service/2194')
 
-        self.transition_service(Service.CRITICAL_STATUS, Service.PASSING_STATUS)
+        self.transition_service_status(Service.CRITICAL_STATUS, Service.PASSING_STATUS)
         resolve_incident.assert_called_once_with('user_key', 'service/2194')
 
     @patch('cabot_alert_pagerduty.models.pygerduty.PagerDuty')
@@ -67,7 +67,7 @@ class TestPagerdutyAlerts(PluginTestCase):
         models.PagerdutyAlertUserData.objects.create(user=self.fallback_officer.profile, service_key='fallback_key')
         self.service.users_to_notify.add(self.fallback_officer)
 
-        self.transition_service(Service.PASSING_STATUS, Service.CRITICAL_STATUS)
+        self.transition_service_status(Service.PASSING_STATUS, Service.CRITICAL_STATUS)
         trigger_incident.assert_has_calls([
             call('user_key', 'Service: Service is CRITICAL', incident_key='service/2194'),
             call('fallback_key', 'Service: Service is CRITICAL', incident_key='service/2194'),
