@@ -60,10 +60,10 @@ class TestPagerdutyAlerts(PluginTestCase):
         resolve_incident.assert_called_once_with('user_key', 'service/2194')
 
     @patch('cabot_alert_pagerduty.models.pygerduty.PagerDuty')
-    def test_alert_multiple_schedules(self, fake_client_class):
+    def test_alert_multiple_keys(self, fake_client_class):
         trigger_incident = fake_client_class.return_value.trigger_incident
 
-        # self.fallback_officer's key is fallback_key, alert self.user and self.fallbak_officer
+        # self.fallback_officer's key is fallback_key, alert self.user and self.fallback_officer
         models.PagerdutyAlertUserData.objects.create(user=self.fallback_officer.profile, service_key='fallback_key')
         self.service.users_to_notify.add(self.fallback_officer)
 
@@ -71,4 +71,19 @@ class TestPagerdutyAlerts(PluginTestCase):
         trigger_incident.assert_has_calls([
             call('user_key', 'Service: Service is CRITICAL', incident_key='service/2194'),
             call('fallback_key', 'Service: Service is CRITICAL', incident_key='service/2194'),
+        ])
+
+    @patch('cabot_alert_pagerduty.models.pygerduty.PagerDuty')
+    def test_missing_profile(self, fake_client_class):
+        """this is an oddly specific test case, but there was a bug"""
+        trigger_incident = fake_client_class.return_value.trigger_incident
+
+        # self.user has a key, but duty officer has no userdata *or profile*
+        # should just gather keys from self.user
+        UserProfile.objects.filter(user=self.duty_officer).delete()
+        self.service.users_to_notify.add(self.duty_officer)
+
+        self.transition_service_status(Service.PASSING_STATUS, Service.CRITICAL_STATUS)
+        trigger_incident.assert_has_calls([
+            call('user_key', 'Service: Service is CRITICAL', incident_key='service/2194'),
         ])

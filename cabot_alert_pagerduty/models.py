@@ -57,12 +57,9 @@ class PagerdutyAlert(AlertPlugin):
         users = service.users_to_notify.all()
 
         service_keys = []
-        for user in users:
-            for plugin in user.profile.user_data():
-                service_key = getattr(plugin, 'service_key', None)
-
-                if service_key:
-                    service_keys.append(str(service_key))
+        for userdata in PagerdutyAlertUserData.objects.filter(user__user__in=users):
+            if userdata.service_key:
+                service_keys.append(str(userdata.service_key))
 
         for service_key in service_keys:
             try:
@@ -92,8 +89,8 @@ class PagerdutyAlert(AlertPlugin):
 
 def _gather_alertable_status():
     alert_status_list = os.environ.get('PAGERDUTY_ALERT_STATUS', 'CRITICAL').split(',')
-
     return alert_status_list
+
 
 class PagerdutyAlertUserData(AlertPluginUserData):
     name = "Pagerduty Plugin"
