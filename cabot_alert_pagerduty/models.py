@@ -4,6 +4,7 @@ import os
 import pygerduty
 
 from django.db import models
+from cabot.cabotapp.models import StatusCheck
 from cabot.cabotapp.alert import AlertPlugin, AlertPluginUserData
 
 
@@ -33,6 +34,7 @@ class PagerdutyAlert(AlertPlugin):
 
         return self._alert_status_list
 
+
     def send_alert(self, service, users, duty_officers):
         """Implement your send_alert functionality here."""
 
@@ -51,6 +53,8 @@ class PagerdutyAlert(AlertPlugin):
         if len(failed_checks) > 0:
             description += ' failed checks [%s]' % ','.join(failed_checks)
 
+        runbook_contents = {check : _get_runbook_content_for_check(check) for check in failed_checks}
+
         incident_key = '%s/%d' % (service.name.lower().replace(' ', '-'),
                                   service.pk)
 
@@ -61,6 +65,7 @@ class PagerdutyAlert(AlertPlugin):
             if userdata.service_key:
                 service_keys.append(str(userdata.service_key))
 
+        details = _create_details_from_runbooks(runbook_contents)
         for service_key in service_keys:
             try:
                 if service.overall_status not in self.alert_status_list:
@@ -69,10 +74,13 @@ class PagerdutyAlert(AlertPlugin):
                 else:
                     client.trigger_incident(service_key,
                                             description,
-                                            incident_key=incident_key)
+                                            incident_key=incident_key,
+                                            details=details,
+                                            )
             except Exception, exp:
                 logger.exception('Error invoking pagerduty: %s' % str(exp))
                 raise
+
 
     def _service_alertable(self, service):
         """ Evaluate service for alertable status """
@@ -85,6 +93,29 @@ class PagerdutyAlert(AlertPlugin):
             return True
 
         return False
+
+
+def _create_details_from_runbooks(check_name_to_runbook):
+    runbook_payloads = list()
+    for check_name, runbook_content in check_name_to_runbook:
+        this_runbook = {
+            "check" : check_name,
+            "content" : runbook_content,
+        }
+        runbook_payloads.append(this_runbook)
+    return {"runbooks" : runbook_payloads}
+
+
+def _get_runbook_content_for_check(check_name):
+    runbook_content = "runbook could not be found :("
+    try:
+        check = StatusCheck.objects.get(name=check_name)
+        runbook_content = check.runbook
+    except StatusCheck.DoesNotExist:
+        logger.warning(f"could not find StatusCheck object with name {check_name}")
+    except Exception as e:
+        logger.critical(f"unknown exception when getting runbook for check {check_name} : ({type(e)}) {e}")
+    return runbook_content
 
 
 def _gather_alertable_status():
