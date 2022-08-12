@@ -68,7 +68,7 @@ class PagerdutyAlert(AlertPlugin):
                                                 incident_key)
                     else:
                         client.trigger_incident(service_key,
-                                                alert_description,
+                                                description,
                                                 incident_key=incident_key)
                 except Exception, exp:
                     logger.exception('Error invoking pagerduty: %s' % str(exp))
