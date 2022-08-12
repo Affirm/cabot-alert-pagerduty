@@ -44,35 +44,35 @@ class PagerdutyAlert(AlertPlugin):
 
         client = pygerduty.PagerDuty(subdomain, api_token)
 
-        description = 'Service: %s is %s' % (service.name,
+        description_prefix = 'Service: %s is %s' % (service.name,
                                              service.overall_status)
 
-        failed_checks = [check.name for check in service.all_failing_checks()]
-        if len(failed_checks) > 0:
-            description += ' failed checks [%s]' % ','.join(failed_checks)
-
-        incident_key = '%s/%d' % (service.name.lower().replace(' ', '-'),
-                                  service.pk)
-
         users = service.users_to_notify.all()
-
+        
         service_keys = []
         for userdata in PagerdutyAlertUserData.objects.filter(user__user__in=users):
             if userdata.service_key:
                 service_keys.append(str(userdata.service_key))
+                
+        failed_checks = [check for check in service.all_failing_checks()]
+        
+        for failed_check in failed_checks:
+            description = '%s failed check [%s]' % (description_prefix, failed_check.name)
+            incident_key = '%s/%d/%d' % (service.name.lower().replace(' ', '-'),
+                                  service.pk, failed_check.pk) 
 
-        for service_key in service_keys:
-            try:
-                if service.overall_status not in self.alert_status_list:
-                    client.resolve_incident(service_key,
-                                            incident_key)
-                else:
-                    client.trigger_incident(service_key,
-                                            description,
-                                            incident_key=incident_key)
-            except Exception, exp:
-                logger.exception('Error invoking pagerduty: %s' % str(exp))
-                raise
+            for service_key in service_keys:
+                try:
+                    if service.overall_status not in self.alert_status_list:
+                        client.resolve_incident(service_key,
+                                                incident_key)
+                    else:
+                        client.trigger_incident(service_key,
+                                                alert_description,
+                                                incident_key=incident_key)
+                except Exception, exp:
+                    logger.exception('Error invoking pagerduty: %s' % str(exp))
+                    raise
 
     def _service_alertable(self, service):
         """ Evaluate service for alertable status """
