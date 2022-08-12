@@ -35,7 +35,6 @@ class PagerdutyAlert(AlertPlugin):
 
     def send_alert(self, service, users, duty_officers):
         """Implement your send_alert functionality here."""
-
         if not self._service_alertable(service):
             return
 
@@ -47,9 +46,14 @@ class PagerdutyAlert(AlertPlugin):
         description = 'Service: %s is %s' % (service.name,
                                              service.overall_status)
 
-        failed_checks = [check.name for check in service.all_failing_checks()]
+        failed_checks = list(service.all_failing_checks())
+        details = {
+            'runbooks': [
+                {'check': check.name, 'content': check.runbook} for check in failed_checks
+            ]
+        }
         if len(failed_checks) > 0:
-            description += ' failed checks [%s]' % ','.join(failed_checks)
+            description += ' failed checks [{}]'.format(', '.join(check.name for check in failed_checks))
 
         incident_key = '%s/%d' % (service.name.lower().replace(' ', '-'),
                                   service.pk)
@@ -69,14 +73,15 @@ class PagerdutyAlert(AlertPlugin):
                 else:
                     client.trigger_incident(service_key,
                                             description,
-                                            incident_key=incident_key)
+                                            incident_key=incident_key,
+                                            details=details,
+                                            )
             except Exception, exp:
                 logger.exception('Error invoking pagerduty: %s' % str(exp))
                 raise
 
     def _service_alertable(self, service):
         """ Evaluate service for alertable status """
-
         if service.overall_status in self.alert_status_list:
             return True
 
