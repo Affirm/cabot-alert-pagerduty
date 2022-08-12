@@ -4,7 +4,6 @@ import os
 import pygerduty
 
 from django.db import models
-from cabot.cabotapp.models import StatusCheck
 from cabot.cabotapp.alert import AlertPlugin, AlertPluginUserData
 
 
@@ -34,10 +33,8 @@ class PagerdutyAlert(AlertPlugin):
 
         return self._alert_status_list
 
-
     def send_alert(self, service, users, duty_officers):
         """Implement your send_alert functionality here."""
-
         if not self._service_alertable(service):
             return
 
@@ -49,11 +46,14 @@ class PagerdutyAlert(AlertPlugin):
         description = 'Service: %s is %s' % (service.name,
                                              service.overall_status)
 
-        failed_checks = [check.name for check in service.all_failing_checks()]
+        failed_checks = list(service.all_failing_checks())
+        details = {
+            'runbooks': [
+                {'check': check.name, 'content': check.runbook} for check in failed_checks
+            ]
+        }
         if len(failed_checks) > 0:
-            description += ' failed checks [%s]' % ','.join(failed_checks)
-
-        runbook_contents = {check : _get_runbook_content_for_check(check) for check in failed_checks}
+            description += ' failed checks [{}]'.format(', '.join(check.name for check in failed_checks))
 
         incident_key = '%s/%d' % (service.name.lower().replace(' ', '-'),
                                   service.pk)
@@ -65,7 +65,6 @@ class PagerdutyAlert(AlertPlugin):
             if userdata.service_key:
                 service_keys.append(str(userdata.service_key))
 
-        details = _create_details_from_runbooks(runbook_contents)
         for service_key in service_keys:
             try:
                 if service.overall_status not in self.alert_status_list:
@@ -81,10 +80,8 @@ class PagerdutyAlert(AlertPlugin):
                 logger.exception('Error invoking pagerduty: %s' % str(exp))
                 raise
 
-
     def _service_alertable(self, service):
         """ Evaluate service for alertable status """
-
         if service.overall_status in self.alert_status_list:
             return True
 
@@ -93,29 +90,6 @@ class PagerdutyAlert(AlertPlugin):
             return True
 
         return False
-
-
-def _create_details_from_runbooks(check_name_to_runbook):
-    runbook_payloads = list()
-    for check_name, runbook_content in check_name_to_runbook:
-        this_runbook = {
-            "check" : check_name,
-            "content" : runbook_content,
-        }
-        runbook_payloads.append(this_runbook)
-    return {"runbooks" : runbook_payloads}
-
-
-def _get_runbook_content_for_check(check_name):
-    runbook_content = "runbook could not be found :("
-    try:
-        check = StatusCheck.objects.get(name=check_name)
-        runbook_content = check.runbook
-    except StatusCheck.DoesNotExist:
-        logger.warning(f"could not find StatusCheck object with name {check_name}")
-    except Exception as e:
-        logger.critical(f"unknown exception when getting runbook for check {check_name} : ({type(e)}) {e}")
-    return runbook_content
 
 
 def _gather_alertable_status():

@@ -54,7 +54,8 @@ class TestPagerdutyAlerts(PluginTestCase):
 
         self.transition_service_status(Service.PASSING_STATUS, Service.CRITICAL_STATUS)
         trigger_incident.assert_called_once_with('user_key', 'Service: Service is CRITICAL',
-                                                 incident_key='service/2194')
+                                                 incident_key='service/2194',
+                                                 details={'runbooks': []})
 
         self.transition_service_status(Service.CRITICAL_STATUS, Service.PASSING_STATUS)
         resolve_incident.assert_called_once_with('user_key', 'service/2194')
@@ -69,8 +70,8 @@ class TestPagerdutyAlerts(PluginTestCase):
 
         self.transition_service_status(Service.PASSING_STATUS, Service.CRITICAL_STATUS)
         trigger_incident.assert_has_calls([
-            call('user_key', 'Service: Service is CRITICAL', incident_key='service/2194'),
-            call('fallback_key', 'Service: Service is CRITICAL', incident_key='service/2194'),
+            call('user_key', 'Service: Service is CRITICAL', incident_key='service/2194', details={'runbooks': []}),
+            call('fallback_key', 'Service: Service is CRITICAL', incident_key='service/2194', details={'runbooks': []}),
         ])
 
     @patch('cabot_alert_pagerduty.models.pygerduty.PagerDuty')
@@ -85,5 +86,26 @@ class TestPagerdutyAlerts(PluginTestCase):
 
         self.transition_service_status(Service.PASSING_STATUS, Service.CRITICAL_STATUS)
         trigger_incident.assert_has_calls([
-            call('user_key', 'Service: Service is CRITICAL', incident_key='service/2194'),
+            call('user_key', 'Service: Service is CRITICAL', incident_key='service/2194', details={'runbooks': []}),
         ])
+
+    @patch('cabot_alert_pagerduty.models.pygerduty.PagerDuty')
+    def test_runbook(self, fake_client_class):
+        trigger_incident = fake_client_class.return_value.trigger_incident
+
+        self.es_check.importance = Service.CRITICAL_STATUS
+        self.es_check.runbook = "cool runbook"
+        self.es_check.save()
+
+        os.environ.pop('PAGERDUTY_ALERT_STATUS', None)
+
+        self.run_checks([(self.es_check, False, False)], from_service_status=Service.PASSING_STATUS)
+        trigger_incident.assert_called_once_with('user_key', 'Service: Service is CRITICAL '
+                                                             'failed checks [ES Metric Check]',
+                                                 incident_key='service/2194',
+                                                 details={'runbooks': [
+                                                     {
+                                                         "check": u"ES Metric Check",
+                                                         "content": u"cool runbook",
+                                                     }
+                                                 ]})
