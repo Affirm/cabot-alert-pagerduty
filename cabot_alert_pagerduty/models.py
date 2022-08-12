@@ -48,14 +48,14 @@ class PagerdutyAlert(AlertPlugin):
                                              service.overall_status)
 
         users = service.users_to_notify.all()
-        
+
         service_keys = []
         for userdata in PagerdutyAlertUserData.objects.filter(user__user__in=users):
             if userdata.service_key:
                 service_keys.append(str(userdata.service_key))
-                
+
         failed_checks = [check for check in service.all_failing_checks()]
-        
+
         for failed_check in failed_checks:
             description = '%s failed check [%s]' % (description_prefix, failed_check.name)
             incident_key = '%s/%d/%d' % (service.name.lower().replace(' ', '-'),
