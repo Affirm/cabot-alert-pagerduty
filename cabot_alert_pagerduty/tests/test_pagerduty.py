@@ -58,8 +58,37 @@ class TestPagerdutyAlerts(PluginTestCase):
         os.environ.pop('PAGERDUTY_ALERT_STATUS', None)
 
         self.transition_service_status(Service.PASSING_STATUS, Service.CRITICAL_STATUS)
-        trigger_incident.assert_called_once_with('user_key', 'Service: Service is CRITICAL',
+        trigger_incident.assert_called_once_with('user_key', 'Service: Service is CRITICAL failed check [Http Check]',
                                                  incident_key='service/2194/10102')
+
+        self.transition_service_status(Service.CRITICAL_STATUS, Service.PASSING_STATUS)
+        resolve_incident.assert_called_once_with('user_key', 'service/2194/10102')
+        
+    @patch('cabot_alert_pagerduty.models.pygerduty.PagerDuty')
+    def test_trigger_and_resolve_multiple_alerts(self, fake_client_class):
+        resolve_incident = fake_client_class.return_value.resolve_incident
+        trigger_incident = fake_client_class.return_value.trigger_incident
+        
+        self.http_check.importance = Service.CRITICAL_STATUS
+        self.http_check.save()
+        self.es_check.importance = Service.CRITICAL_STATUS
+        self.es_check.save()
+        
+        os.environ.pop('PAGERDUTY_ALERT_STATUS', None)
+
+        self.transition_service_status(Service.PASSING_STATUS, Service.CRITICAL_STATUS)
+        trigger_incident.assert_has_calls([
+            call(
+                'user_key', 
+                'Service: Service is CRITICAL failed check [Http Check]', 
+                incident_key='service/2194/10102'
+            ),
+            call(
+                'user_key', 
+                'Service: Service is CRITICAL failed check [ES Metric Check]', 
+                incident_key='service/2194/10104'
+            )
+        ])
 
         self.transition_service_status(Service.CRITICAL_STATUS, Service.PASSING_STATUS)
         resolve_incident.assert_called_once_with('user_key', 'service/2194/10102')
@@ -79,8 +108,16 @@ class TestPagerdutyAlerts(PluginTestCase):
 
         self.transition_service_status(Service.PASSING_STATUS, Service.CRITICAL_STATUS)
         trigger_incident.assert_has_calls([
-            call('user_key', 'Service: Service is CRITICAL', incident_key='service/2194/10104'),
-            call('fallback_key', 'Service: Service is CRITICAL', incident_key='service/2194/10104'),
+            call(
+                'user_key', 
+                'Service: Service is CRITICAL failed check [ES Metric Check]', 
+                incident_key='service/2194/10104'
+            ),
+            call(
+                'fallback_key', 
+                'Service: Service is CRITICAL failed check [ES Metric Check]', 
+                incident_key='service/2194/10104'
+            ),
         ])
 
     @patch('cabot_alert_pagerduty.models.pygerduty.PagerDuty')
@@ -100,5 +137,5 @@ class TestPagerdutyAlerts(PluginTestCase):
 
         self.transition_service_status(Service.PASSING_STATUS, Service.CRITICAL_STATUS)
         trigger_incident.assert_has_calls([
-            call('user_key', 'Service: Service is CRITICAL', incident_key='service/2194/10104'),
+            call('user_key', 'Service: Service is CRITICAL failed check [ES Metric Check]', incident_key='service/2194/10104'),
         ])
