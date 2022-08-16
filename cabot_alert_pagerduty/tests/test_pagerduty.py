@@ -19,7 +19,11 @@ class TestPagerdutyAlerts(PluginTestCase):
         self.plugin = models.PagerdutyAlert.objects.get()
 
         # self.user's service key is user_key
-        models.PagerdutyAlertUserData.objects.create(user=self.user.profile, service_key='user_key')
+        models.PagerdutyAlertUserData.objects.create(
+            user=self.user.profile, 
+            service_key='user_key',
+            separate_alerts_per_check=False
+        )
 
     def test_critical_alertable(self):
         """ A service with a critical status is alertable """
@@ -51,13 +55,52 @@ class TestPagerdutyAlerts(PluginTestCase):
     def test_trigger_and_resolve(self, fake_client_class):
         resolve_incident = fake_client_class.return_value.resolve_incident
         trigger_incident = fake_client_class.return_value.trigger_incident
-
+        
         self.transition_service_status(Service.PASSING_STATUS, Service.CRITICAL_STATUS)
         trigger_incident.assert_called_once_with('user_key', 'Service: Service is CRITICAL',
                                                  incident_key='service/2194')
 
         self.transition_service_status(Service.CRITICAL_STATUS, Service.PASSING_STATUS)
         resolve_incident.assert_called_once_with('user_key', 'service/2194')
+        
+    @patch('cabot_alert_pagerduty.models.pygerduty.PagerDuty')
+    def test_trigger_and_resolve_multiple_alerts(self, fake_client_class):
+        resolve_incident = fake_client_class.return_value.resolve_incident
+        trigger_incident = fake_client_class.return_value.trigger_incident
+        
+        self.http_check.importance = Service.CRITICAL_STATUS
+        self.http_check.save()
+        self.es_check.importance = Service.CRITICAL_STATUS
+        self.es_check.save()
+        
+        os.environ.pop('PAGERDUTY_ALERT_STATUS', None)
+        
+        # self.fallback_officer's key is fallback_key, alert self.user and self.fallback_officer
+        models.PagerdutyAlertUserData.objects.create(
+            user=self.fallback_officer.profile, 
+            service_key='fallback_key', 
+            separate_alerts_per_check=True
+        )
+        self.service.users_to_notify.add(self.fallback_officer)
+        
+        self.transition_service_status(Service.PASSING_STATUS, Service.CRITICAL_STATUS)
+        trigger_incident.assert_has_calls([
+            call(
+                'user_key', 
+                'Service: Service is CRITICAL failed checks [Http Check, ES Metric Check]', 
+                incident_key='service/2194'
+            ),
+            call(
+                'fallback_key', 
+                'Service: Service is CRITICAL failed check [Http Check]', 
+                incident_key='service/2194/10102'
+            ),
+            call(
+                'fallback_key',
+                'Service: Service is CRITICAL failed check [ES Metric Check]', 
+                incident_key='service/2194/10104'
+            )
+        ])
 
     @patch('cabot_alert_pagerduty.models.pygerduty.PagerDuty')
     def test_alert_multiple_keys(self, fake_client_class):
@@ -69,14 +112,27 @@ class TestPagerdutyAlerts(PluginTestCase):
 
         self.transition_service_status(Service.PASSING_STATUS, Service.CRITICAL_STATUS)
         trigger_incident.assert_has_calls([
-            call('user_key', 'Service: Service is CRITICAL', incident_key='service/2194'),
-            call('fallback_key', 'Service: Service is CRITICAL', incident_key='service/2194'),
+            call(
+                'user_key', 
+                'Service: Service is CRITICAL failed check [ES Metric Check]', 
+                incident_key='service/2194/10104'
+            ),
+            call(
+                'fallback_key', 
+                'Service: Service is CRITICAL failed check [ES Metric Check]', 
+                incident_key='service/2194/10104'
+            ),
         ])
 
     @patch('cabot_alert_pagerduty.models.pygerduty.PagerDuty')
     def test_missing_profile(self, fake_client_class):
         """this is an oddly specific test case, but there was a bug"""
         trigger_incident = fake_client_class.return_value.trigger_incident
+        
+        self.es_check.importance = Service.CRITICAL_STATUS
+        self.es_check.save()
+        
+        os.environ.pop('PAGERDUTY_ALERT_STATUS', None)
 
         # self.user has a key, but duty officer has no userdata *or profile*
         # should just gather keys from self.user
@@ -85,5 +141,5 @@ class TestPagerdutyAlerts(PluginTestCase):
 
         self.transition_service_status(Service.PASSING_STATUS, Service.CRITICAL_STATUS)
         trigger_incident.assert_has_calls([
-            call('user_key', 'Service: Service is CRITICAL', incident_key='service/2194'),
+            call('user_key', 'Service: Service is CRITICAL failed check [ES Metric Check]', incident_key='service/2194/10104'),
         ])

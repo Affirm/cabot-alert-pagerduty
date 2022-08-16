@@ -44,35 +44,44 @@ class PagerdutyAlert(AlertPlugin):
 
         client = pygerduty.PagerDuty(subdomain, api_token)
 
-        description = 'Service: %s is %s' % (service.name,
-                                             service.overall_status)
-
-        failed_checks = [check.name for check in service.all_failing_checks()]
-        if len(failed_checks) > 0:
-            description += ' failed checks [%s]' % ','.join(failed_checks)
-
-        incident_key = '%s/%d' % (service.name.lower().replace(' ', '-'),
-                                  service.pk)
-
         users = service.users_to_notify.all()
 
-        service_keys = []
+        service_info = []
         for userdata in PagerdutyAlertUserData.objects.filter(user__user__in=users):
             if userdata.service_key:
-                service_keys.append(str(userdata.service_key))
+                service_info.append((str(userdata.service_key), user_data.separate_alerts_per_check))
 
-        for service_key in service_keys:
-            try:
-                if service.overall_status not in self.alert_status_list:
-                    client.resolve_incident(service_key,
-                                            incident_key)
-                else:
-                    client.trigger_incident(service_key,
-                                            description,
-                                            incident_key=incident_key)
-            except Exception, exp:
-                logger.exception('Error invoking pagerduty: %s' % str(exp))
-                raise
+        failed_checks = [check for check in service.all_failing_checks()]
+        
+        for service_key, separate_alerts_per_check in service_info:
+            description = 'Service: %s is %s' % (service.name, service.overall_status)
+            incident_key = '%s/%d' % (service.name.lower().replace(' ', '-'), service.pk)
+            
+            if separate_alerts_per_check:
+                for failed_check in failed_checks:
+                    check_description = '%s failed check [%s]' % (description, failed_check.name)
+                    check_incident_key = '%s/%d' % (incident_key, failed_check.pk)
+                    
+                    _process_alert(service, client, service_key, check_incident_key, check_description)
+                    
+            else:
+                if len(failed_checks) > 0:
+                    description += ' failed checks [%s]' % ','.join(check.name for check in failed_checks)
+                
+                _process_alert(service, client, service_key, incident_key, description)
+
+    def _process_alert(self, service, client, service_key, incident_key, description):
+        try:
+            if service.overall_status not in self.alert_status_list:
+                client.resolve_incident(service_key,
+                                        incident_key)
+            else:
+                client.trigger_incident(service_key,
+                                        description,
+                                        incident_key=incident_key)
+        except Exception, exp:
+            logger.exception('Error invoking pagerduty: %s' % str(exp))
+            raise
 
     def _service_alertable(self, service):
         """ Evaluate service for alertable status """
@@ -95,3 +104,4 @@ def _gather_alertable_status():
 class PagerdutyAlertUserData(AlertPluginUserData):
     name = "Pagerduty Plugin"
     service_key = models.CharField(max_length=50, blank=True, null=True)
+    separate_alerts_per_check = models.BooleanField(default=False)
