@@ -49,15 +49,15 @@ class PagerdutyAlert(AlertPlugin):
         service_info = []
         for userdata in PagerdutyAlertUserData.objects.filter(user__user__in=users):
             if userdata.service_key:
-                service_info.append((str(userdata.service_key), user_data.separate_alert_per_check))
+                service_info.append((str(userdata.service_key), user_data.separate_alerts_per_check))
 
         failed_checks = [check for check in service.all_failing_checks()]
         
-        for service_key, separate_alert_per_check in service_info:
+        for service_key, separate_alerts_per_check in service_info:
             description = 'Service: %s is %s' % (service.name, service.overall_status)
             incident_key = '%s/%d' % (service.name.lower().replace(' ', '-'), service.pk)
             
-            if separate_alert_per_check:
+            if separate_alerts_per_check:
                 for failed_check in failed_checks:
                     check_description = '%s failed check [%s]' % (description, failed_check.name)
                     check_incident_key = '%s/%d' % (incident_key, failed_check.pk)
@@ -104,4 +104,4 @@ def _gather_alertable_status():
 class PagerdutyAlertUserData(AlertPluginUserData):
     name = "Pagerduty Plugin"
     service_key = models.CharField(max_length=50, blank=True, null=True)
-    separate_alert_per_check = models.BooleanField(default=False)
+    separate_alerts_per_check = models.BooleanField(default=False)
