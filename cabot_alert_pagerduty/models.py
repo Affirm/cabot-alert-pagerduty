@@ -44,9 +44,6 @@ class PagerdutyAlert(AlertPlugin):
 
         client = pygerduty.PagerDuty(subdomain, api_token)
 
-        description = 'Service: %s is %s' % (service.name,
-                                             service.overall_status)
-
         users = service.users_to_notify.all()
 
         service_info = []
@@ -57,21 +54,21 @@ class PagerdutyAlert(AlertPlugin):
         failed_checks = [check for check in service.all_failing_checks()]
         
         for service_key, separate_alert_per_check in service_info:
+            description = 'Service: %s is %s' % (service.name, service.overall_status)
             incident_key = '%s/%d' % (service.name.lower().replace(' ', '-'), service.pk)
             
             if separate_alert_per_check:
                 for failed_check in failed_checks:
-                    alert_description = '%s failed check [%s]' % (description, failed_check.name)
-                    alert_incident_key = '%s/%d' % (incident_key, failed_check.pk)
+                    check_description = '%s failed check [%s]' % (description, failed_check.name)
+                    check_incident_key = '%s/%d' % (incident_key, failed_check.pk)
                     
-                    _process_alert(service, client, service_key, alert_incident_key, alert_description)
+                    _process_alert(service, client, service_key, check_incident_key, check_description)
                     
             else:
                 if len(failed_checks) > 0:
                     description += ' failed checks [%s]' % ','.join(check.name for check in failed_checks)
                 
                 _process_alert(service, client, service_key, incident_key, description)
-        
 
     def _process_alert(self, service, client, service_key, incident_key, description):
         try:
